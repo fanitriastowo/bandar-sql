@@ -15,6 +15,7 @@ psql -U <user> -d <database> -h <host> -f 1.momentum-rebound.sql
 psql -U <user> -d <database> -h <host> -f 2.daily-trading-screener.sql
 psql -U <user> -d <database> -h <host> -f swing-screening-history-ohlc.sql
 psql -U <user> -d <database> -h <host> -f swing-screener-advanced.sql
+psql -U <user> -d <database> -h <host> -f 3.swing-trading-screening.sql
 ```
 
 ### Debug Advanced Queries
@@ -22,9 +23,19 @@ psql -U <user> -d <database> -h <host> -f swing-screener-advanced.sql
 psql -U <user> -d <database> -h <host> -f swing-screener-advanced-debug.sql
 ```
 
+### Setup Database Schema
+```bash
+psql -U <user> -d <database> -h <host> -f structures/stock_fundamentals.sql
+```
+
 ### Run Backtesting/Simulation
 ```bash
 psql -U <user> -d <database> -h <host> -f operations/momentum_rebound_simulate_by_date.sql
+```
+
+### Update Fundamentals Data
+```bash
+psql -U <user> -d <database> -h <host> -f bulk_add_fundamentals_with_free_float.sql
 ```
 
 ### Update Consolidation Patterns
