@@ -1,0 +1,41 @@
+{
+	"folders": {},
+	"connections": {
+		"postgres-jdbc-19b42002e90-5096328ab331350e": {
+			"provider": "postgresql",
+			"driver": "postgres-jdbc",
+			"name": "bandar",
+			"save-password": true,
+			"configuration": {
+				"host": "103.94.239.66",
+				"port": "5432",
+				"database": "bandar",
+				"url": "jdbc:postgresql://103.94.239.66:5432/bandar",
+				"configurationType": "MANUAL",
+				"home": "/opt/homebrew/Cellar/libpq/18.0",
+				"type": "dev",
+				"closeIdleConnection": true,
+				"provider-properties": {
+					"@dbeaver-show-non-default-db@": "false"
+				},
+				"auth-model": "native"
+			}
+		}
+	},
+	"connection-types": {
+		"dev": {
+			"name": "Development",
+			"color": "255,255,255",
+			"description": "Regular development database",
+			"auto-commit": true,
+			"confirm-execute": false,
+			"confirm-data-change": false,
+			"smart-commit": false,
+			"smart-commit-recover": true,
+			"auto-close-transactions": true,
+			"close-transactions-period": 1800,
+			"auto-close-connections": true,
+			"close-connections-period": 14400
+		}
+	}
+}
