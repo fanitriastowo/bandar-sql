@@ -1,51 +1,34 @@
 # AGENTS.md
 
-This file provides guidance for agentic coding agents working in this PostgreSQL-based stock trading strategy repository.
+PostgreSQL stock trading strategy repository for agentic coding agents.
 
-## Development Commands
+## Commands
 
-### Test Data Quality
+### Run single test/query
+```bash
+psql -U <user> -d <database> -h <host> -f <filename>.sql
+```
+
+### Test data quality
 ```bash
 psql -U <user> -d <database> -h <host> -f count.sql
 ```
 
-### Run Screening Queries
-```bash
-psql -U <user> -d <database> -h <host> -f 1.momentum-rebound.sql
-psql -U <user> -d <database> -h <host> -f 2.daily-trading-screener.sql
-psql -U <user> -d <database> -h <host> -f swing-screening-history-ohlc.sql
-psql -U <user> -d <database> -h <host> -f swing-screener-advanced.sql
-psql -U <user> -d <database> -h <host> -f 3.swing-trading-screening.sql
-```
-
-### Debug Advanced Queries
-```bash
-psql -U <user> -d <database> -h <host> -f swing-screener-advanced-debug.sql
-```
-
-### Setup Database Schema
+### Schema setup
 ```bash
 psql -U <user> -d <database> -h <host> -f structures/stock_fundamentals.sql
 ```
 
-### Run Backtesting/Simulation
-```bash
-psql -U <user> -d <database> -h <host> -f operations/momentum_rebound_simulate_by_date.sql
-```
+## Database Schema (structures/)
+- `market_cap`: Stock market capitalization data with UUID primary key
+- `orderbook`: Real-time order book with timestamp, security code, side, price, volume
+- `stock_fundamentals`: Company fundamentals (shares, free float, market cap ratios)
+- `stock_summary`: EOD stock data (date, time, OHLC, volume, bid/ask)
+- `trades`: Individual trade records with trade numbers and timestamps
 
-### Update Fundamentals Data
-```bash
-psql -U <user> -d <database> -h <host> -f bulk_add_fundamentals_with_free_float.sql
-```
+## Code Style
 
-### Update Consolidation Patterns
-```bash
-psql -U <user> -d <database> -h <host> -f per_night.sql
-```
-
-## Code Style Guidelines
-
-### SQL Conventions
+### SQL conventions
 - Use `COALESCE()` for data source fallback (intraday > historical)
 - Use `DISTINCT ON` with deterministic ordering for latest records
 - Use `NULLIF()` before division operations for null safety
@@ -53,15 +36,14 @@ psql -U <user> -d <database> -h <host> -f per_night.sql
 - Use window functions over self-joins for performance
 - Include minimum data point validation before averages
 
-### Naming & Organization
-- Table names: snake_case (stock_summary, history_ohlc)
-- Column aliases: descriptive snake_case
-- File prefixes: number-based strategy grouping (1.*, 2.*, etc.)
-- Debug files: use `-debug` suffix
+### Naming & organization
+- Tables: snake_case (stock_summary, history_ohlc)
+- Columns: descriptive snake_case aliases
+- Files: number-based strategy prefixes (1.*, 2.*), `-debug` suffix for debug files
 - Schema files: place in `structures/` directory
 
-### Data Safety
-- Always enforce minimum liquidity thresholds (Rp 5B default)
-- Use date ranges with `RANGE BETWEEN INTERVAL` for efficiency
+### Data safety
+- Enforce minimum liquidity thresholds (Rp 5B default)
+- Use `RANGE BETWEEN INTERVAL` for efficient date queries
 - Validate data availability with count queries
-- Parameterize simulation dates in dedicated variables
+- Parameterize simulation dates in variables

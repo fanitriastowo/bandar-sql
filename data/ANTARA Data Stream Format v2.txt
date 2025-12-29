@@ -1,0 +1,256 @@
+ANTARA Data Stream Format
+Informasi Koneksi
+Data dikirim melalui TCP port 9000
+
+Format Data
+Format data secara umum:
+ANTR|data type|data detail
+Data type:
+1 = trade
+2 = stock summary
+3 = order book (best bid)
+4 = order book (best offer)
+5 = top gainer
+6 = top loser
+7 = most active
+8 = resending trade (EOD) → data lengkap termasuk broker buyer-seller
+9 = index
+A = stock data
+B = broker data
+C = Order book summary
+
+Trade (1)
+● Format Data
+ANTR|1|trade date|trade time|security code|board code|trade
+no|price|volume
+Keterangan:
+a. Trade date: tanggal transaksi, format YYMMDDDD
+b. Trade time: jam transaksi, format HHMMSS
+c. Security code
+d. Board code
+e. Trade no
+f. Price
+g. Volume
+
+● Contoh Data
+ANTR|1|20220628|090446|TOYS|RG|000000792220|153.00|44900
+ANTR|1|20220628|090446|MPOW|RG|000000792221|144.00|100
+ANTR|1|20220628|090446|ELSA|RG|000000792222|306.00|600
+ANTR|1|20220628|090446|MPOW|RG|000000792223|144.00|20000
+
+ANTR|1|20220628|090446|MPOW|RG|000000792224|144.00|100
+
+Stock Summary (2)
+● Format Data
+ANTR|2|data date|data time|security code|board code|opening
+price|highest price|lowest proce|close price|trade volume|trade
+value|trade frequency|previous price
+Keterangan:
+a. Data date: tanggal transaksi, format YYMMDDDD
+b. Date time: jam transaksi, format HHMMSS
+c. Security code
+d. Board code
+e. Opening price
+f. Highest price
+g. Lowest price
+h. Close price: close/last price
+i. Trade volume
+j. Trade value
+k. Trade frequency
+l. Previous price
+
+● Contoh Data
+ANTR|2|20220808|145829|ICBP|NG|8800.0|8800.0|8762.0|8792.0|417112300
+|3664010085000|25|8792.0
+ANTR|2|20220808|144959|AGRO|RG|855.0|865.0|835.0|850.0|23903900|2014
+9292000|3559|850.0
+ANTR|2|20220808|144955|AGRS|RG|119.0|127.0|119.0|123.0|20248900|2513
+859800|1082|123.0
+
+Order Book (3 & 4)
+● Format Data
+Format data best bid:
+ANTR|3|security code|{0}frequnecy #1;price #1;volume #1|frequnecy
+#2;price #2;volume #2|...|frequnecy #n;price #n;volume #n
+Format data best offer:
+ANTR|4|security code|{1}frequnecy #1;price #1;volume #1|frequnecy
+#2;price #2;volume #2|...|frequnecy #n;price #n;volume #n
+Keterangan:
+a. Security code
+b. Frequency #1: jumlah antrian level 1
+c. Price #1: harga best bid/offer level 1
+d. Volume #1: jumlah best bid/offer level 1
+
+● Contoh Data
+ANTR|3|TPIA|{0}1;8425;25|1;8450;29|3;8475;45|1;8500;15|2;8525;23|5;8
+550;64|2;8575;10|3;8600;31|3;8625;36|2;8650;46|
+ANTR|4|TLKM|{1}1;4090;7|1;4100;4|1;4110;214|2;4120;22|1;4200;6|1;423
+0;250|1;4290;50|1;4500;25|
+
+Top Gainer (5)
+● Catatan
+■
+■
+
+Penentuan top gainer berdasarkan persentase change price terhadap harga
+sebelumnya (percent change)
+Data kirim setiap menit antara jam 09.00 sampai dengan jam 17.00
+
+● Format Data
+ANTR|5|security code #1|security code #2|security code
+#3|...|security code #10
+Keterangan:
+a. Security code #1
+b. Security code #2
+c. Security code #10
+
+● Contoh Data
+ANTR|5|RICY|NZIA|XSSI|WAPO|PALM|IGAR|TRGU|HOPE|BEBS|XBES|
+
+Top Loser (6)
+● Catatan
+■
+■
+
+Penentuan top loser berdasarkan persentase change price terhadap harga
+sebelumnya (percent change)
+Data kirim setiap menit antara jam 09.00 sampai dengan jam 17.00
+
+● Format Data
+ANTR|6|security code #1|security code #2|security code
+#3|...|security code #10
+Keterangan:
+a. Security code #1
+b. Security code #2
+c. Security code #10
+
+● Contoh Data
+ANTR|6|UVCR|ADCP|ASHA|BEBS|BESS|PBSA|BELL|JAWA|SLIS|PNSE|
+
+Most Actives (7)
+● Format Data
+ANTR|7|security code #1|security code #2|security code
+#3|...|security code #10
+Keterangan:
+a. Security code #1
+b. Security code #2
+c. Security code #10
+
+● Contoh Data
+ANTR|7|CHEM|GOTO|RICY|BUMI|BIMA|GZCO|INDY|RAJA|IPPE|WINR|
+
+Resending Trade EOD (8)
+● Format Data
+ANTR|8|trade number|session|board code|seller broker code|seller
+investor type|buyer broker code|buyer investor type|security
+code|quantity|price|trade date|seller order number|buyer order
+number|trade time
+Keterangan:
+a. Trade number
+b. Session: 1,2
+c. Board: Equity RG, TN, NG Derivative RO, RF
+d. Seller broker code
+e. Seller investor type: I , A, S, F
+f. Buyer broker code
+g. Buyer investor type: I, A, S, F
+h. Security code
+i. Quantity
+j. Price
+k. Trade date (YYYY-MM-DD)
+l. Seller order number
+m. Buyer order number
+n. Trade time (HHMMSS)
+I - Indonesia = Individual local, A - Asing = Individual Foreign, S - Sendiri =
+Institutional Local, dan F - Foreign = Institutional Foreign
+
+● Contoh Data
+ANTR|8|1|1|RG|KK|I|GR|I|WIKA|200|930|2022-07-05|26582|23555|085900
+
+Index (9)
+● Format Data
+ANTR|9|index code|date|time|last index|prev index|open index|high
+index|low index|change|change
+rate|freq|volume(LOTS)|value|up|down|unchange|no transaction|market
+value
+Keterangan:
+a. Index code
+b. Date
+c. Time
+d. last index
+e. prev index
+f. open index
+g. high index
+h. low index
+i. Change
+j. change rate
+k. Freq
+l. volume(LOTS)
+m. Value
+n. Up
+o. Down
+p. Unchange
+q. no transaction
+r. market value
+
+● Contoh Data
+ANTR|9|COMPOSITE|20220808|144907|7072075.0|7084655.0|7084655.0|71008
+08.0|7050824.0|-12580.0|177.0|1255056|2462189918|1.443457327369E14|226|279|183|95|9.23860357
+60028400
+ANTR|9|DBX|20220808|144907|2002872.0|2017126.0|2017126.0|2027445.0|2
+000265.0|-14254.0|706.0|547321|827899121|2.94266694563E13|99|157|95|82|1.6088052502883
+9200
+ANTR|9|ESGQKEHATI|20220808|144907|133227.0|132763.0|132763.0|133402.
+0|132478.0|464.0|349.0|186363|29390001|1.15146988976E13|27|13|5|0|45
+3228751848303400
+
+Stock Data (A)
+● Format Data
+ANTR|A|security code|security name|security status|security type|sub
+industry|ipo price|base price|listed shares|tradable listed
+shares|shares per lot|remarks|security remarks2|weight
+
+● Contoh Data
+ANTR|A|AALI|Astra Agro Lestari
+Tbk.|0|ORDI|0046|15.00|00000000000.00|00001924688333|00001924688333|
+1||--M-18APM16000D232-----------|00000000000000
+ANTR|A|ABBA|Mahaka Media
+Tbk.|0|ORDI|0072|1.00|00000000000.00|00003935892857|00003935892857|1
+||--U-2105000000E614-----------|00000000000000
+ANTR|A|ABDA|Asuransi Bina Dana Arta
+Tbk.|0|WATCHLIST|0096|38.00|00000000000.00|00000620806680|0000062080
+6680|1||--U-2105000000G412-----------X|00000000000000
+ANTR|A|ABMM|ABM Investama
+Tbk.|0|ORDI|0037|37.00|00000000000.00|00002753165000|00002753165000|
+1||--M-1175000000C311-----------|00000000000000
+ANTR|A|ACES|Ace Hardware Indonesia
+Tbk|0|ORDI|0079|8.00|00000000000.00|00017150000000|00017150000000|1|
+|--M-187EMD0000E743-----------|00000000000000
+
+Broker Data (B)
+● Format Data
+ANTR|B|broker code|broker name|broker status
+Keterangan:
+a. Broker code
+b. Broker name
+c. Broker status
+
+● Contoh Data
+ANTR|B|AF|Harita Kencana Sekuritas|0
+ANTR|B|AG|Kiwoom Sekuritas Indonesia|0
+ANTR|B|AH|Shinhan Sekuritas Indonesia|0
+ANTR|B|AI|UOB Kay Hian Sekuritas|0
+ANTR|B|AK|UBS Sekuritas Indonesia|0
+ANTR|B|AN|Wanteg Sekuritas|0
+ANTR|B|AO|ERDIKHA ELIT SEKURITAS|0
+
+Order Book Summary (C)
+● Format Data
+ANTR|C|broker code|total bid queue|total bid volume|total offer
+queue|total offer volume
+
+● Contoh Data
+ANTR|C|ABMM|203|21560|165|6574
+ANTR|C|ADMR|454|33413|607|58087
+ANTR|C|ADRO|868|98759|2291|322016
+
+

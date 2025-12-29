@@ -1,3 +1,34 @@
+-- public.stock_summary definition
+
+-- Drop table
+
+-- DROP TABLE public.stock_summary;
+
+CREATE TABLE public.stock_summary (
+	data_date bpchar(8) NOT NULL,
+	data_time bpchar(6) NOT NULL,
+	ts timestamp NOT NULL,
+	security_code varchar(10) NOT NULL,
+	board_code varchar(2) NOT NULL,
+	opening_price numeric(12, 2) NOT NULL,
+	highest_price numeric(12, 2) NOT NULL,
+	lowest_price numeric(12, 2) NOT NULL,
+	close_price numeric(12, 2) NOT NULL,
+	trade_volume int8 NOT NULL,
+	trade_value int8 NOT NULL,
+	trade_frequency int8 NOT NULL,
+	previous_price numeric(12, 2) NULL,
+	CONSTRAINT stock_summary_pkey PRIMARY KEY (security_code, ts),
+	CONSTRAINT stock_summary_unique_key UNIQUE (security_code, ts)
+);
+CREATE INDEX idx_stock_summary_board_date_security_ts ON public.stock_summary USING btree (board_code, data_date, security_code, ts DESC);
+CREATE INDEX idx_stock_summary_board_security_date ON public.stock_summary USING btree (board_code, security_code, data_date DESC);
+CREATE INDEX idx_stock_summary_code_date_ts ON public.stock_summary USING btree (security_code, data_date DESC, ts DESC);
+CREATE INDEX idx_stock_summary_date_ts ON public.stock_summary USING btree (data_date DESC, ts DESC);
+CREATE INDEX idx_stock_summary_security_date_ts_desc ON public.stock_summary USING btree (security_code, data_date DESC, ts DESC);
+CREATE INDEX idx_stock_summary_ts ON public.stock_summary USING btree (ts);
+CREATE INDEX stock_summary_ts_idx ON public.stock_summary USING btree (ts DESC);
+
 INSERT INTO stock_summary (data_date,data_time,ts,security_code,board_code,opening_price,highest_price,lowest_price,close_price,trade_volume,trade_value,trade_frequency,previous_price) VALUES
 	 ('20251125','162640','2025-11-25 23:26:40','BRPT','NG',3540.00,3540.00,3300.00,3450.00,21063500,69536225000,12,3500.00),
 	 ('20251125','162640','2025-11-25 23:26:40','BBRI','NG',3960.00,4000.00,3410.00,3884.00,388095400,1503042693000,14,4115.00),

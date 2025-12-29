@@ -13,29 +13,64 @@
 				"url": "jdbc:postgresql://103.94.239.66:5432/bandar",
 				"configurationType": "MANUAL",
 				"home": "/opt/homebrew/Cellar/libpq/18.0",
-				"type": "dev",
+				"type": "prod",
 				"closeIdleConnection": true,
 				"provider-properties": {
 					"@dbeaver-show-non-default-db@": "false"
 				},
 				"auth-model": "native"
 			}
+		},
+		"postgres-jdbc-19b5a9c3ab5-6b480755ab89bcff": {
+			"provider": "postgresql",
+			"driver": "postgres-jdbc",
+			"name": "yogin_finance",
+			"save-password": true,
+			"configuration": {
+				"host": "10.10.10.5",
+				"port": "5432",
+				"database": "yogin_finance",
+				"url": "jdbc:postgresql://10.10.10.5:5432/yogin_finance",
+				"configurationType": "MANUAL",
+				"home": "/opt/homebrew/Cellar/libpq/18.1",
+				"type": "prod",
+				"closeIdleConnection": true,
+				"properties": {
+					"connectTimeout": "20",
+					"loginTimeout": "20",
+					"escapeSyntaxCallMode": "callIfNoReturn"
+				},
+				"provider-properties": {
+					"@dbeaver-show-non-default-db@": "false",
+					"@dbeaver-chosen-role@": "",
+					"@dbeaver-show-template-db@": "false",
+					"@dbeaver-show-unavailable-db@": "false",
+					"show-database-statistics": "false",
+					"@dbeaver-read-all-data-types-db@": "false",
+					"read-keys-with-columns": "false",
+					"replace-legacy-timezone": "false",
+					"@dbeaver-use-prepared-statements-db@": "false",
+					"postgresql.dd.plain.string": "false",
+					"postgresql.dd.tag.string": "false"
+				},
+				"auth-model": "native"
+			}
 		}
 	},
 	"connection-types": {
-		"dev": {
-			"name": "Development",
-			"color": "255,255,255",
-			"description": "Regular development database",
-			"auto-commit": true,
-			"confirm-execute": false,
-			"confirm-data-change": false,
+		"prod": {
+			"name": "Production",
+			"color": "org.jkiss.dbeaver.color.connectionType.prod.background",
+			"description": "Production database",
+			"auto-commit": false,
+			"confirm-execute": true,
+			"confirm-data-change": true,
 			"smart-commit": false,
-			"smart-commit-recover": true,
+			"smart-commit-recover": false,
 			"auto-close-transactions": true,
-			"close-transactions-period": 1800,
+			"close-transactions-period": 600,
 			"auto-close-connections": true,
-			"close-connections-period": 14400
+			"close-connections-period": 3600
 		}
 	}
 }

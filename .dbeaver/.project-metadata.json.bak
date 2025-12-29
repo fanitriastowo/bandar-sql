@@ -1,1 +1,1 @@
-{"resources":{"swing-screener-advanced.sql":{"default-datasource":"postgres-jdbc-19b42002e90-5096328ab331350e"}}}
+{"resources":{"data/insert_market_cap.sql":{"default-datasource":"postgres-jdbc-19b42002e90-5096328ab331350e","default-catalog":"bandar","default-schema":"public"},"structures/market_cap.sql":{"default-datasource":"postgres-jdbc-19b42002e90-5096328ab331350e","default-catalog":"bandar","default-schema":"public"}}}

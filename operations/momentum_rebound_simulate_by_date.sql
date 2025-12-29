@@ -1,11 +1,12 @@
--- Momentum Rebound - Simulation for November 20, 2025
--- Shows all criteria for each candidate stock on this specific date
--- Modified to use fixed date instead of latest date
+-- Momentum Rebound - Trade-Based Simulation for 2025-12-22
+-- Enhanced strategy using actual trades data instead of orderbook for better momentum signals
+-- Optimized for 4CPU/4GB RAM server - eliminates 400M row orderbook bottleneck
+-- Shows all 9 momentum criteria for each candidate stock
 
 WITH
 -- Fixed simulation date
 simulation_date AS (
-    SELECT '2025-12-17'::DATE AS target_date
+    SELECT '2025-12-23'::DATE AS target_date
 ),
 
 range_window AS (
@@ -26,15 +27,17 @@ daily_snapshots AS (
         trade_volume,
         trade_value,
         trade_frequency,
-        previous_price
+        previous_price,
+        board_code
     FROM
         public.stock_summary
     WHERE
-        lowest_price IS NOT NULL
+        board_code = 'RG'
+        AND lowest_price IS NOT NULL
         AND trade_volume IS NOT NULL
         AND close_price IS NOT NULL
         AND data_date::DATE >= (SELECT target_date FROM simulation_date) - (SELECT win FROM range_window)
-        AND data_date::DATE <= (SELECT target_date FROM simulation_date)  -- Only data up to simulation date
+        AND data_date::DATE <= (SELECT target_date FROM simulation_date)
     ORDER BY
         security_code,
         data_date DESC,
@@ -57,7 +60,7 @@ previous_day_data AS (
         data_date DESC
 ),
 
--- Calculate average volume and price range over available trading days before November 20, 2025
+-- Calculate average volume and price range over available trading days before target_date
 avg_volume_20d AS (
     SELECT
         ds.security_code,
@@ -68,14 +71,14 @@ avg_volume_20d AS (
     FROM
         daily_snapshots ds
     WHERE
-        ds.data_date::DATE < (SELECT target_date FROM simulation_date)  -- Exclude target date
+        ds.data_date::DATE < (SELECT target_date FROM simulation_date)
     GROUP BY
         ds.security_code
     HAVING
-        COUNT(DISTINCT ds.data_date) >= 0  -- At least 7 trading days of data
+        COUNT(DISTINCT ds.data_date) >= 0  -- At least available trading days of data
 ),
 
--- Get latest intraday snapshot for each stock on November 20, 2025
+-- Get latest intraday snapshot for each stock on target_date
 latest_snapshot AS (
     SELECT DISTINCT ON (security_code)
         security_code,
@@ -93,49 +96,71 @@ latest_snapshot AS (
     FROM
         public.stock_summary
     WHERE
-        data_date::DATE = (SELECT target_date FROM simulation_date)
+        board_code = 'RG'
+        AND data_date::DATE = (SELECT target_date FROM simulation_date)
     ORDER BY
         security_code,
         ts DESC
 ),
 
--- Get latest orderbook snapshot for buy/sell volume analysis
-orderbook_snapshot AS (
-  SELECT
-	  security_code,
-	  side,
-	  SUM(volume) AS side_volume,
-	  MAX(CASE WHEN level = 1 THEN price END) AS best_price
-  FROM
-	  public.orderbook
-  WHERE
-	  ts::DATE = (SELECT target_date FROM simulation_date)
-	  AND ts = (
-		  SELECT MAX(ts) FROM public.orderbook
-		  WHERE ts::DATE = (SELECT target_date FROM simulation_date)
-	  )
-  GROUP BY
-	  security_code,
-	  side
-),
-
--- Calculate buy/sell volume ratios
-buy_sell_analysis AS (
+-- NEW: Trade momentum analysis using actual executed trades
+-- Step 1: Calculate window functions first (LAG requires window context)
+trade_momentum_raw AS (
     SELECT
-        COALESCE(b.security_code, s.security_code) AS security_code,
-        COALESCE(b.side_volume, 0) AS buy_volume,
-        COALESCE(s.side_volume, 0) AS sell_volume,
-        b.best_price AS best_bid,
-        s.best_price AS best_ask,
-        ROUND((COALESCE(b.side_volume, 0)::numeric / NULLIF(COALESCE(s.side_volume, 1), 0))::numeric, 4) AS buy_sell_ratio
+        security_code,
+        price,
+        volume,
+        ts,
+        -- Price direction compared to previous trade
+        CASE 
+            WHEN price > LAG(price) OVER (PARTITION BY security_code ORDER BY ts) THEN true
+            ELSE false
+        END AS is_price_up,
+        CASE 
+            WHEN price < LAG(price) OVER (PARTITION BY security_code ORDER BY ts) THEN true
+            ELSE false
+        END AS is_price_down
     FROM
-        (SELECT security_code, side_volume, best_price FROM orderbook_snapshot WHERE side = 'B') b
-        FULL OUTER JOIN
-        (SELECT security_code, side_volume, best_price FROM orderbook_snapshot WHERE side = 'O') s
-        ON b.security_code = s.security_code
+        public.trades
+    WHERE
+        ts::DATE = (SELECT target_date FROM simulation_date)
+        AND security_code IN (
+            SELECT security_code FROM latest_snapshot
+        )
 ),
 
--- Calculate candle characteristics and volume analysis
+-- Step 2: Apply aggregate functions to window function results
+trade_momentum_analysis AS (
+    SELECT
+        security_code,
+        -- Price momentum: last vs first trade of the day
+        ROUND(((MAX(price) - MIN(price)) / NULLIF(MIN(price), 0)) * 100, 2) AS trade_price_momentum_pct,
+        -- Trade count: activity level
+        COUNT(*) AS total_trade_count,
+        -- Volume-weighted average price (VWAP)
+        ROUND(SUM(price * volume) / NULLIF(SUM(volume), 0), 2) AS vwap_price,
+        -- Aggressive buying: trades at increasing prices
+        SUM(CASE WHEN is_price_up THEN volume ELSE 0 END) AS aggressive_buy_volume,
+        -- Total traded volume from trades table
+        SUM(volume) AS total_trade_volume,
+        -- Trade frequency: trades per hour approximation
+        ROUND(COUNT(*)::numeric / NULLIF(
+            EXTRACT(EPOCH FROM MAX(ts) - MIN(ts)) / 3600, 1
+        ), 2) AS trades_per_hour,
+        -- Price momentum direction: positive vs negative trades
+        SUM(CASE WHEN is_price_up THEN 1 ELSE 0 END) - 
+        SUM(CASE WHEN is_price_down THEN 1 ELSE 0 END) AS price_direction_score,
+        -- Large trade dominance: trades above average volume (simplified)
+        SUM(CASE WHEN volume >= 1000000 THEN volume ELSE 0 END) AS large_trade_volume
+    FROM
+        trade_momentum_raw
+    GROUP BY
+        security_code
+    HAVING
+        COUNT(*) >= 10  -- Minimum 10 trades for meaningful analysis
+),
+
+-- Calculate candle characteristics and trade-enhanced momentum analysis
 candle_analysis AS (
     SELECT
         ls.security_code,
@@ -159,12 +184,15 @@ candle_analysis AS (
         av.min_price_20d,
         av.days_count AS avg_days_count,
 
-        -- Buy/Sell volume data
-        COALESCE(bsa.buy_volume, 0) AS buy_volume,
-        COALESCE(bsa.sell_volume, 0) AS sell_volume,
-        bsa.best_bid,
-        bsa.best_ask,
-        bsa.buy_sell_ratio,
+        -- Trade momentum data
+        COALESCE(tma.trade_price_momentum_pct, 0) AS trade_price_momentum_pct,
+        COALESCE(tma.total_trade_count, 0) AS total_trade_count,
+        COALESCE(tma.vwap_price, ls.current_price) AS vwap_price,
+        COALESCE(tma.aggressive_buy_volume, 0) AS aggressive_buy_volume,
+        COALESCE(tma.total_trade_volume, 0) AS total_trade_volume,
+        COALESCE(tma.trades_per_hour, 0) AS trades_per_hour,
+        COALESCE(tma.price_direction_score, 0) AS price_direction_score,
+        COALESCE(tma.large_trade_volume, 0) AS large_trade_volume,
 
         -- Original Criterion 1: Price down ≥ 3% from opening
         ROUND((ls.current_price / NULLIF(ls.opening_price, 0))::numeric, 4) AS price_to_open_ratio,
@@ -195,7 +223,7 @@ candle_analysis AS (
             ELSE false
         END AS has_volume_surge,
 
-        -- Original Criterion 3b: Volume below average (< 1.0× average) - indicates low volume today
+        -- Original Criterion 3b: Volume below average (< 1.0× average)
         CASE
             WHEN av.avg_volume_20d IS NOT NULL AND ls.trade_volume < av.avg_volume_20d THEN true
             ELSE false
@@ -214,17 +242,18 @@ candle_analysis AS (
             ELSE false
         END AS is_near_support,
 
-        -- NEW Criterion 6: Dominant buy pressure (BuyVol > SellVol)
+        -- NEW Criterion 6: Trade flow momentum (actual executed trade pressure)
         CASE
-            WHEN bsa.buy_volume > bsa.sell_volume THEN true
+            WHEN tma.trade_price_momentum_pct >= 2.0 THEN true  -- 2% upward momentum
             ELSE false
-        END AS dominant_buy_pressure,
+        END AS has_trade_flow_momentum,
 
-        -- NEW Criterion 7: Buy/Sell ratio >= 1.5
+        -- NEW Criterion 7: Aggressive buying intensity (60% of volume in rising trades)
         CASE
-            WHEN bsa.buy_sell_ratio >= 1.5 THEN true
+            WHEN tma.total_trade_volume > 0 
+                 AND (tma.aggressive_buy_volume::numeric / NULLIF(tma.total_trade_volume, 0)) >= 0.6 THEN true
             ELSE false
-        END AS strong_buy_ratio,
+        END AS has_aggressive_buying,
 
         -- NEW Criterion 8: Volume not overheated (TodayVolume < Avg20 * 3)
         CASE
@@ -238,12 +267,6 @@ candle_analysis AS (
             WHEN ls.previous_price IS NOT NULL AND ls.current_price > ls.previous_price * 1.03 THEN true
             ELSE false
         END AS price_strengthening,
-
-        -- NEW Criterion 10: Bid > Ask at best price (strong demand)
-        CASE
-            WHEN bsa.best_bid IS NOT NULL AND bsa.best_ask IS NOT NULL AND bsa.best_bid > bsa.best_ask THEN true
-            ELSE false
-        END AS bid_above_ask,
 
         -- NEW Criterion 11: Price increase below 10% over 20 days (not overextended)
         -- Kenaikan dibawah 10% untuk 20 hari terakhir
@@ -265,10 +288,10 @@ candle_analysis AS (
         latest_snapshot ls
         LEFT JOIN previous_day_data pd ON ls.security_code = pd.security_code
         LEFT JOIN avg_volume_20d av ON ls.security_code = av.security_code
-        LEFT JOIN buy_sell_analysis bsa ON ls.security_code = bsa.security_code
+        LEFT JOIN trade_momentum_analysis tma ON ls.security_code = tma.security_code
 )
 
--- Show detailed breakdown for all candidates on November 20, 2025
+-- Show detailed breakdown for all candidates on target_date using trade-enhanced analysis
 SELECT
     security_code,
     data_date,
@@ -280,18 +303,21 @@ SELECT
     previous_low,
     previous_price,
 
-    -- Transaction metrics
+    -- Transaction metrics from stock_summary
     trade_volume AS today_volume,
     trade_value AS today_value,
     ROUND(avg_volume_20d::numeric, 0) AS avg_volume_20d,
     avg_days_count,
 
-    -- Buy/Sell pressure
-    buy_volume,
-    sell_volume,
-    buy_sell_ratio,
-    best_bid,
-    best_ask,
+    -- Trade analysis metrics
+    total_trade_count,
+    total_trade_volume AS trade_executed_volume,
+    trades_per_hour,
+    trade_price_momentum_pct,
+    vwap_price,
+    aggressive_buy_volume,
+    price_direction_score,
+    large_trade_volume,
 
     -- Calculated ratios
     price_to_open_ratio,
@@ -316,36 +342,27 @@ SELECT
     CASE WHEN is_liquid THEN '✓' ELSE '✗' END AS "4_Liquid",
     CASE WHEN is_near_support THEN '✓' ELSE '✗' END AS "5_NearSupport",
 
-    -- NEW Criteria flags
-    CASE WHEN dominant_buy_pressure THEN '✓' ELSE '✗' END AS "6_BuyPressure",
-    CASE WHEN strong_buy_ratio THEN '✓' ELSE '✗' END AS "7_BuySell>=1.5",
+    -- NEW Trade-based Criteria flags
+    CASE WHEN has_trade_flow_momentum THEN '✓' ELSE '✗' END AS "6_TradeMomentum",
+    CASE WHEN has_aggressive_buying THEN '✓' ELSE '✗' END AS "7_AggressiveBuy",
     CASE WHEN volume_not_overheated THEN '✓' ELSE '✗' END AS "8_NotOverheated",
     CASE WHEN price_strengthening THEN '✓' ELSE '✗' END AS "9_Price>3%",
-    CASE WHEN bid_above_ask THEN '✓' ELSE '✗' END AS "10_BidAboveAsk",
+
+    -- Additional Trend Analysis Criteria flags
     CASE WHEN not_overextended THEN '✓' ELSE '✗' END AS "11_NotExtended<10%",
     CASE WHEN not_in_downtrend THEN '✓' ELSE '✗' END AS "12_NotDown>5%",
 
-    -- Original signal strength (5 criteria)
---    (
---        CASE WHEN is_down_from_open THEN 1 ELSE 0 END +
---        CASE WHEN has_long_lower_shadow THEN 1 ELSE 0 END +
---        CASE WHEN has_volume_surge THEN 1 ELSE 0 END +
---        CASE WHEN is_liquid THEN 1 ELSE 0 END +
---        CASE WHEN is_near_support THEN 1 ELSE 0 END
---    ) AS original_criteria_met,
-
-    -- Extended signal strength (12 criteria)
+    -- Complete signal strength (11 criteria - excluding 3b_VolBelowAvg)
     (
         CASE WHEN is_down_from_open THEN 1 ELSE 0 END +
         CASE WHEN has_long_lower_shadow THEN 1 ELSE 0 END +
         CASE WHEN has_volume_surge THEN 1 ELSE 0 END +
         CASE WHEN is_liquid THEN 1 ELSE 0 END +
         CASE WHEN is_near_support THEN 1 ELSE 0 END +
-        CASE WHEN dominant_buy_pressure THEN 1 ELSE 0 END +
-        CASE WHEN strong_buy_ratio THEN 1 ELSE 0 END +
+        CASE WHEN has_trade_flow_momentum THEN 1 ELSE 0 END +
+        CASE WHEN has_aggressive_buying THEN 1 ELSE 0 END +
         CASE WHEN volume_not_overheated THEN 1 ELSE 0 END +
         CASE WHEN price_strengthening THEN 1 ELSE 0 END +
-        CASE WHEN bid_above_ask THEN 1 ELSE 0 END +
         CASE WHEN not_overextended THEN 1 ELSE 0 END +
         CASE WHEN not_in_downtrend THEN 1 ELSE 0 END
     ) AS total_criteria_met
@@ -365,11 +382,10 @@ ORDER BY
         CASE WHEN has_volume_surge THEN 1 ELSE 0 END +
         CASE WHEN is_liquid THEN 1 ELSE 0 END +
         CASE WHEN is_near_support THEN 1 ELSE 0 END +
-        CASE WHEN dominant_buy_pressure THEN 1 ELSE 0 END +
-        CASE WHEN strong_buy_ratio THEN 1 ELSE 0 END +
+        CASE WHEN has_trade_flow_momentum THEN 1 ELSE 0 END +
+        CASE WHEN has_aggressive_buying THEN 1 ELSE 0 END +
         CASE WHEN volume_not_overheated THEN 1 ELSE 0 END +
         CASE WHEN price_strengthening THEN 1 ELSE 0 END +
-        CASE WHEN bid_above_ask THEN 1 ELSE 0 END +
         CASE WHEN not_overextended THEN 1 ELSE 0 END +
         CASE WHEN not_in_downtrend THEN 1 ELSE 0 END
     ) DESC,

@@ -1,34 +1,31 @@
-CREATE TABLE IF NOT EXISTS public.stock_fundamentals (
-    security_code VARCHAR(10) PRIMARY KEY,
-    shares_outstanding BIGINT NOT NULL,
-    free_float_shares BIGINT,              -- NEW: Free floating shares
-    free_float_percentage DECIMAL(5,2),    -- NEW: Free float % (0.00-100.00)
-    last_updated DATE NOT NULL DEFAULT CURRENT_DATE,
-    source TEXT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    
-    -- Constraints
-    CONSTRAINT valid_free_float_percentage 
-        CHECK (free_float_percentage IS NULL OR (free_float_percentage >= 0 AND free_float_percentage <= 100)),
-    CONSTRAINT valid_shares_outstanding 
-        CHECK (shares_outstanding > 0),
-    CONSTRAINT valid_free_float_shares 
-        CHECK (free_float_shares IS NULL OR free_float_shares >= 0)
+-- public.stock_fundamentals definition
+
+-- Drop table
+
+-- DROP TABLE public.stock_fundamentals;
+
+CREATE TABLE public.stock_fundamentals (
+	security_code text NOT NULL,
+	shares_outstanding int8 NOT NULL,
+	last_updated date NOT NULL,
+	"source" text NULL,
+	CONSTRAINT stock_fundamentals_pkey PRIMARY KEY (security_code)
 );
 
--- Trigger to update timestamp
-CREATE OR REPLACE FUNCTION update_fundamentals_timestamp()
-RETURNS TRIGGER AS $$
-BEGIN
-    NEW.updated_at = CURRENT_TIMESTAMP;
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
+INSERT INTO public.stock_fundamentals (security_code,shares_outstanding,last_updated,"source") VALUES
+	 ('BBRI',124186187163,'2024-12-31','Annual Report 2024'),
+	 ('BBCA',24217088667,'2024-12-31','Annual Report 2024'),
+	 ('BMRI',86034524425,'2024-12-31','Annual Report 2024'),
+	 ('BBNI',17392920370,'2024-12-31','Annual Report 2024'),
+	 ('ASII',40484000000,'2024-12-31','Annual Report 2024'),
+	 ('UNTR',3730313322,'2024-12-31','Annual Report 2024'),
+	 ('TLKM',99766326000,'2024-12-31','Annual Report 2024'),
+	 ('EXCL',26446363703,'2024-12-31','Annual Report 2024'),
+	 ('UNVR',7630000000,'2024-12-31','Annual Report 2024'),
+	 ('ICBP',3681231699,'2024-12-31','Annual Report 2024');
+INSERT INTO public.stock_fundamentals (security_code,shares_outstanding,last_updated,"source") VALUES
+	 ('PTBA',3230000000,'2024-12-31','Annual Report 2024'),
+	 ('ADRO',31985962000,'2024-12-31','Annual Report 2024'),
+	 ('GOTO',75000000000,'2024-12-31','IPO Prospectus'),
+	 ('AMMN',7584000000,'2024-12-31','Annual Report 2024');
 
-CREATE TRIGGER trigger_update_fundamentals_timestamp
-    BEFORE UPDATE ON public.stock_fundamentals
-    FOR EACH ROW EXECUTE FUNCTION update_fundamentals_timestamp();
-
--- Index for performance
-CREATE INDEX idx_stock_fundamentals_security_code ON public.stock_fundamentals(security_code);
